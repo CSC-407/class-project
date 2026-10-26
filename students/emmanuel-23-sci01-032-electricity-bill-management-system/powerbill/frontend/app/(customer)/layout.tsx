@@ -1,1 +1,0 @@
-import { AppShell } from "@/components/layout/app-shell"; import { requireUser } from "@/lib/server-api"; export default async function CustomerLayout({children}:{children:React.ReactNode}){const user=await requireUser(["customer"]);return <AppShell user={user}>{children}</AppShell>}
