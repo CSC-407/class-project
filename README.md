@@ -1,103 +1,74 @@
-# CSC 407: Class Projects
+# School Fees Payment Management System (CSC 407)
 
-Submission repository for **CSC 407**. Every student submits their assigned project here so the lecturer can review everyone's code in one place.
+A full-stack web app for **Kingsgate University** (fictional). Students view their fees, pay in full or in installments, and download QR-verifiable receipts. Bursary staff manage fee structures, payments, debtors, reports and an audit log.
 
-> You do **not** need an invite. You submit by forking this repo and opening a pull request.
+Built for the course *Building Web Applications: Web Application Security, Testing, Deployment and Review*. The app includes dedicated **Security**, **Testing**, **Deployment** and **Review** pages.
 
----
+- **Frontend:** React 19, Vite, Tailwind CSS v4, React Router, Recharts
+- **Backend:** Node.js 22, Express 5, Prisma ORM, SQLite in development (switchable to PostgreSQL)
+- **Security:** bcrypt, HttpOnly/SameSite session cookies, CSRF tokens, Helmet headers, rate limiting, account lockout, staff 2FA, Zod validation, and a hash-chained audit log
+- **Payments:** a sandbox gateway (Test Mode). Card details go to the gateway, never to the API, and every result is verified server-to-server.
 
-## Quick Start
+## Run it
 
-1. **Fork** this repo (button at the top right).
-2. **Clone** your fork:
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/class-project.git
-   cd class-project
-   ```
-3. **Create your folder** inside `students/`, named:
-   ```
-   firstname-matricno-projecttitle
-   ```
-   Example: `students/benjamin-12345-school-fees-system`
-4. **Add your project code** and a `README.md` inside that folder (see below).
-5. **Commit and push:**
-   ```bash
-   git add .
-   git commit -m "Add project: firstname-matricno-projecttitle"
-   git push origin main
-   ```
-6. **Open a Pull Request** from your fork to this repo. Use the title:
-   ```
-   Submission: Firstname Lastname - Matric No
-   ```
-
-Need more detail? See the step-by-step guide below.
-
----
-
-## What Goes in Your Project README
-
-Create `students/your-folder/README.md` containing:
-
-- Full name and matric number
-- Project title
-- Short description (2-3 sentences)
-- Tech stack
-- How to install and run it
-- Screenshots (optional, but helpful)
-
-A ready-made template is in [`students/_TEMPLATE/README.md`](students/_TEMPLATE/README.md). Copy it into your folder and fill it in.
-
----
-
-## Step-by-Step Guide
-
-### 1. Fork
-Click **Fork** at the top right of this page, then **Create fork**. You now have your own copy under your GitHub account.
-
-### 2. Clone and enter the repo
-Use the clone command in the Quick Start. You need [Git](https://git-scm.com/downloads) installed.
-
-### 3. Create your folder
-Folder names must be lowercase, with no spaces (use hyphens).
-
-```
-students/
-└── firstname-matricno-projecttitle/
-    ├── README.md
-    ├── src/
-    └── ...your code
+```bash
+npm install      # installs frontend + server dependencies
+npm run dev      # starts the API (port 4000) and the website (http://localhost:5173)
 ```
 
-### 4. Commit and push
-Run the commands from the Quick Start. If Git asks you to sign in, use your GitHub username and a [personal access token](https://github.com/settings/tokens) as the password, or sign in through GitHub Desktop.
+The first `npm run dev` creates `server/.env`, builds the database and seeds demo data automatically.
 
-### 5. Open the Pull Request
-Go to your fork on GitHub, click **Contribute → Open pull request**, fill in the template, and submit.
-
-### 6. Updating your submission
-Just keep committing and pushing to your fork. Your pull request updates automatically. You do not need to open a new one.
-
----
-
-## Rules
-
-- **Only edit your own folder.** Pull requests that touch anything outside a single folder under `students/` fail the automatic check.
-- **Never commit secrets.** No `.env` files, passwords, API keys, or database credentials.
-- **Never commit dependencies or build output.** No `node_modules`, `venv`, `build`, or `dist` folders. Add a `.gitignore` inside your folder.
-- **Your project must run** following the instructions in your README.
-- **Original work only.** You must be able to explain every part of your code.
-- **Submit before the deadline** announced in class.
-
----
-
-## Troubleshooting
-
-| Problem | Fix |
+| Command | What it does |
 |---|---|
-| `Permission denied` when pushing | You cloned this repo instead of your fork. Re-clone using your own username in the URL. |
-| Automatic check failed on my PR | You changed files outside your folder, or touched more than one folder. Undo those changes and push again. |
-| My fork is out of date | On your fork's page, click **Sync fork → Update branch**, then `git pull`. |
-| Merge conflict | You edited something outside your folder. Sync your fork and move your work back into your own folder. |
+| `npm run dev` | API + website together |
+| `npm test` | 32 automated API tests against a fresh test database |
+| `npm run db:reset` | Wipe and reseed the demo database (stop `npm run dev` first) |
+| `npm run build` | Production build of the frontend into `dist/` |
+| `npm start` | Run the API in production mode (also serves `dist/`) |
 
-Still stuck? Ask in the class group chat.
+## Demo accounts
+
+| Role | Login | Password | One-time code |
+|---|---|---|---|
+| Student | `21/0345` | `Student@123` | none |
+| Bursary Admin | `bursar@kingsgate.edu.ng` | `Admin@123` | `123456` |
+| Super Admin | `sysadmin@kingsgate.edu.ng` | `Super@123` | `123456` |
+
+**Test cards** (any future expiry, any CVV): `4084 0840 8408 4081` succeeds, `4000 0000 0000 0002` is declined, `5060 6666 6666 6666 666` is pending (it settles on the second "Check status").
+
+Emails and SMS aren't really sent. They're written to the API log, and in development the one-time links and codes are also shown in the UI.
+
+## Security features (all enforced on the server)
+
+- Passwords hashed with **bcrypt** (cost 12). Login errors are generic, and unknown accounts get a dummy hash comparison so timing gives nothing away.
+- **Lockout** after 5 failed logins (5 minutes). The auth endpoints are rate-limited, and so is the whole API.
+- **Sessions:** a random token in a `Secure` (production), `HttpOnly`, `SameSite=Strict` cookie. Only its SHA-256 is stored. A 10-minute idle timeout is enforced by the server. "Log out other devices" and password changes revoke sessions.
+- **CSRF:** a per-session synchroniser token in `X-CSRF-Token`, plus an Origin allow-list.
+- **Role-based access** on every route (student / admin / superadmin). Resources are scoped to their owner, so there's no IDOR. Denials are audit-logged.
+- **Input validation** with Zod on every endpoint. The server recalculates every payment amount. Requests carry idempotency keys to prevent double charges.
+- **Helmet** security headers (CSP, X-Frame-Options, nosniff, Referrer-Policy; HSTS in production). No stack traces are shown to users.
+- An **append-only audit log** with a SHA-256 hash chain; tampering is detected. You can check the chain from the Audit Log page.
+- **Backups:** one-click consistent SQLite snapshots from System Health.
+
+## Project structure
+
+```
+src/                 React frontend
+  lib/api.js         API client (cookies + CSRF header), useApi hook
+  context/           Auth (server session) and Data (fees, payments, notifications)
+  pages/             public/, student/, admin/, showcase/
+server/
+  prisma/            schema.prisma, seed.js
+  src/app.js         Express app: Helmet, sessions, CSRF, rate limits, routes
+  src/routes/        auth, me, payments, gateway (sandbox), public, admin/*
+  src/lib/           fees, audit (hash chain), sessions, gateway, crypto
+  tests/api.test.js  automated API tests
+```
+
+## Switching to PostgreSQL
+
+In `server/prisma/schema.prisma`, set `provider = "postgresql"`, point `DATABASE_URL` in `server/.env` at your database, then run `npm run db:setup` in `server/`.
+
+## Test evidence
+
+Put screenshots in `public/evidence/<TEST-ID>.png` (for example `SC-01.png`). The Testing page shows them in its evidence lightbox.

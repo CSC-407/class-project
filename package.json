@@ -1,0 +1,33 @@
+{
+  "name": "school-fees-payment-system",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm --prefix server run dev\" \"vite\"",
+    "dev:web": "vite",
+    "dev:api": "npm --prefix server run dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "npm --prefix server start",
+    "test": "npm --prefix server test",
+    "db:reset": "npm --prefix server run db:reset",
+    "postinstall": "npm --prefix server install"
+  },
+  "dependencies": {
+    "lucide-react": "^1.49.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
+    "recharts": "^3.10.1",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.1"
+  }
+}

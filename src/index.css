@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Design tokens ---------- */
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Primary: deep navy */
+  --color-brand-50: #eef4fb;
+  --color-brand-100: #d9e6f5;
+  --color-brand-200: #b3cdeb;
+  --color-brand-300: #7fa9da;
+  --color-brand-400: #4a80c4;
+  --color-brand-500: #2b62a8;
+  --color-brand-600: #1f4d8a;
+  --color-brand-700: #1a3f71;
+  --color-brand-800: #16335b;
+  --color-brand-900: #0f2440;
+  --color-brand-950: #0a1829;
+
+  /* Accent: warm amber for calls to action */
+  --color-accent-50: #fffbeb;
+  --color-accent-100: #fef3c7;
+  --color-accent-300: #fcd34d;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+  --color-accent-700: #b45309;
+
+  --radius-card: 12px;
+  --shadow-soft: 0 1px 2px rgb(15 36 64 / 0.04), 0 4px 16px rgb(15 36 64 / 0.06);
+  --shadow-lift: 0 8px 30px rgb(15 36 64 / 0.12);
+}
+
+/* Semantic surface tokens (switch per theme) */
+@theme inline {
+  --color-page: var(--sfp-page);
+  --color-card: var(--sfp-card);
+  --color-subtle: var(--sfp-subtle);
+  --color-line: var(--sfp-line);
+  --color-fg: var(--sfp-fg);
+  --color-muted: var(--sfp-muted);
+  --color-ring: var(--sfp-ring);
+}
+
+:root {
+  --sfp-page: #f5f7fb;
+  --sfp-card: #ffffff;
+  --sfp-subtle: #eef2f7;
+  --sfp-line: #dfe5ee;
+  --sfp-fg: #0f1b2d;
+  --sfp-muted: #55637a;
+  --sfp-ring: #2b62a8;
+  color-scheme: light;
+}
+
+.dark {
+  --sfp-page: #0a111d;
+  --sfp-card: #111a2a;
+  --sfp-subtle: #172237;
+  --sfp-line: #24324a;
+  --sfp-fg: #e8edf5;
+  --sfp-muted: #9aa8bf;
+  --sfp-ring: #7fa9da;
+  color-scheme: dark;
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-page text-fg font-sans antialiased;
+    min-height: 100vh;
+  }
+  :focus-visible {
+    outline: 2px solid var(--sfp-ring);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  /* Grid items default to min-width:auto, which lets wide tables blow out the layout. */
+  .grid > * {
+    min-width: 0;
+  }
+}
+
+@layer utilities {
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
+
+/* ---------- Motion ---------- */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
+}
+@keyframes pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.animate-fade-up { animation: fade-up 0.28s ease-out both; }
+.animate-slide-right { animation: slide-in-right 0.25s ease-out both; }
+.animate-slide-left { animation: slide-in-left 0.25s ease-out both; }
+.animate-pop { animation: pop 0.45s ease-out both; }
+.check-draw { stroke-dasharray: 48; stroke-dashoffset: 48; animation: draw 0.5s 0.3s ease-out forwards; }
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--sfp-subtle);
+  border-radius: 8px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+  animation: shimmer 1.3s infinite;
+}
+.dark .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .check-draw { stroke-dashoffset: 0; }
+}
+
+/* ---------- Print (receipts) ---------- */
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff !important; color: #000 !important; }
+  .no-print { display: none !important; }
+  .print-area { box-shadow: none !important; border: none !important; margin: 0 !important; max-width: none !important; }
+  .dark { --sfp-card: #fff; --sfp-fg: #000; --sfp-muted: #444; --sfp-line: #ccc; --sfp-subtle: #f2f2f2; }
+}
