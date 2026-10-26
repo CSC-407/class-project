@@ -1,0 +1,250 @@
+// Database schema for the School Fees Payment Management System.
+// Development uses SQLite (zero setup). For production, change the provider
+// to "postgresql" and point DATABASE_URL at a Postgres instance.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  role          String    // student | admin | superadmin
+  name          String
+  email         String    @unique
+  matric        String?   @unique
+  staffId       String?
+  title         String?
+  phone         String?
+  address       String?
+  photo         String?   // data URL, validated for type and size on upload
+  faculty       String?
+  department    String?
+  level         String?
+  passwordHash  String
+  verified      Boolean   @default(false)
+  twoFactor     Boolean   @default(false)
+  status        String    @default("active") // active | suspended | deactivated
+  notifPrefs    String    @default("{}")
+  createdAt     DateTime  @default(now())
+  lastLoginAt   DateTime?
+
+  sessions      Session[]
+  payments      Payment[]
+  notifications Notification[]
+  notes         StudentNote[]  @relation("NoteStudent")
+  tokens        Token[]
+  challenges    AuthChallenge[]
+}
+
+model Session {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique // SHA-256 of the cookie value; the raw token is never stored
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  csrfToken   String
+  userAgent   String?
+  ip          String?
+  remember     Boolean   @default(false)
+  previousLogin DateTime?
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  @@index([userId])
+}
+
+model LoginThrottle {
+  key         String    @id // normalised identifier
+  count       Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+model AuthChallenge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  remember  Boolean  @default(false)
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+model Token {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    // verify_email | reset_password
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model FeeItem {
+  id             String    @id @default(cuid())
+  name           String
+  category       String    @default("General")
+  amount         Float
+  faculty        String    @default("All")
+  department     String    @default("All")
+  level          String    @default("All")
+  session        String
+  semester       String
+  dueDate        DateTime
+  installments   Boolean   @default(false)
+  minInstallment Float     @default(0)
+  mandatory      Boolean   @default(true)
+  status         String    @default("draft") // draft | published | archived
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  versions       FeeVersion[]
+  paymentItems   PaymentItem[]
+}
+
+model FeeVersion {
+  id        String   @id @default(cuid())
+  feeItemId String
+  feeItem   FeeItem  @relation(fields: [feeItemId], references: [id], onDelete: Cascade)
+  version   Int
+  snapshot  String   // JSON of the fee at this version
+  change    String
+  byName    String
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id             String    @id @default(cuid())
+  ref            String    @unique
+  receiptNo      String?   @unique
+  studentId      String
+  student        User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  amount         Float
+  serviceCharge  Float
+  method         String    // card | transfer | ussd
+  last4          String?
+  status         String    @default("pending") // pending | success | failed
+  verification   String    @default("n/a")     // verified | unverified | n/a
+  flagged        Boolean   @default(false)
+  flagReason     String?
+  refunded       Boolean   @default(false)
+  refundReason   String?
+  failureReason  String?
+  gatewayCode    String?
+  gatewayMessage String?
+  authCode       String?
+  channel        String?
+  ip             String?
+  session        String
+  idempotencyKey String?   @unique
+  timeline       String    @default("[]")
+  createdAt      DateTime  @default(now())
+  confirmedAt    DateTime?
+
+  items          PaymentItem[]
+
+  @@index([studentId])
+  @@index([createdAt, status])
+}
+
+model PaymentItem {
+  id        String   @id @default(cuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  feeItemId String
+  feeItem   FeeItem  @relation(fields: [feeItemId], references: [id])
+  name      String
+  amount    Float
+
+  @@index([feeItemId])
+}
+
+// Stand-in for the third-party gateway's own records (Paystack, Remita, ...).
+// Only the last 4 card digits are ever kept.
+model GatewayCharge {
+  reference String   @id
+  amount    Float
+  status    String   // success | failed | pending
+  code      String
+  message   String
+  channel   String
+  last4     String?
+  brand     String?
+  checks    Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model StudentNote {
+  id        String   @id @default(cuid())
+  studentId String
+  student   User     @relation("NoteStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  text      String
+  byName    String
+  createdAt DateTime @default(now())
+}
+
+// Append-only. Each row stores the hash of the previous row, so edits are detectable.
+model AuditLog {
+  id       Int      @id @default(autoincrement())
+  at       DateTime @default(now())
+  userId   String?
+  userName String
+  role     String
+  action   String
+  target   String
+  ip       String
+  result   String
+  prevHash String
+  hash     String
+}
+
+model ReportLog {
+  id        String   @id @default(cuid())
+  report    String
+  range     String
+  format    String
+  rows      Int
+  byName    String
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  ticket    String   @unique
+  name      String
+  email     String
+  topic     String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model SystemEvent {
+  id        String   @id @default(cuid())
+  severity  String   // info | warning | error | critical
+  source    String
+  message   String
+  createdAt DateTime @default(now())
+}
